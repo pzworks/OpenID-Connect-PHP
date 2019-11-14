@@ -23,7 +23,7 @@
 
 require __DIR__ . '/vendor/autoload.php';
 
-use Jumbojett\OpenIDConnectClient;
+use pzworks\OpenIDConnectClient;
 
 $oidc = new OpenIDConnectClient(
     'http://myproviderURL.com/',
