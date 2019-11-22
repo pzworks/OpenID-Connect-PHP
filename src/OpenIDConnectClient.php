@@ -218,6 +218,11 @@ class OpenIDConnectClient
      */
     private $redirectURL;
 
+    /**
+     * @var array holds jwks
+     */
+    private $jwks;
+
     private $enc_type = PHP_QUERY_RFC1738;
 
     /**
@@ -227,7 +232,8 @@ class OpenIDConnectClient
      * @param $client_secret string optional
      * @param null $issuer
      */
-    public function __construct($provider_url = null, $client_id = null, $client_secret = null, $issuer = null) {
+    public function __construct($provider_url = null, $client_id = null, $client_secret = null, $issuer = null, $jwks = null) {
+        $this->jwks = $jwks;
         $this->setProviderURL($provider_url);
         if ($issuer === null) {
             $this->setIssuer($provider_url);
@@ -239,7 +245,7 @@ class OpenIDConnectClient
         $this->clientSecret = $client_secret;
 
         $this->issuerValidator = function($iss){
-	        return ($iss === $this->getIssuer() || $iss === $this->getWellKnownIssuer() || $iss === $this->getWellKnownIssuer(true));
+            return ($iss === $this->getIssuer() || $iss === $this->getWellKnownIssuer() || $iss === $this->getWellKnownIssuer(true));
         };
     }
 
@@ -767,12 +773,12 @@ class OpenIDConnectClient
      */
     private function get_key_for_header($keys, $header) {
         foreach ($keys as $key) {
-            if ($key->kty === 'RSA') {
-                if (!isset($header->kid) || $key->kid === $header->kid) {
+            if ($key['kty'] === 'RSA') {
+                if (!isset($header->kid) || $key['kid'] === $header->kid) {
                     return $key;
                 }
             } else {
-                if (isset($key->alg) && $key->alg === $header->alg && $key->kid === $header->kid) {
+                if (isset($key['alg']) && $key['alg'] === $header->alg && $key['kid'] === $header->kid) {
                     return $key;
                 }
             }
@@ -800,7 +806,7 @@ class OpenIDConnectClient
 
     /**
      * @param string $hashtype
-     * @param object $key
+     * @param array $key
      * @param $payload
      * @param $signature
      * @param $signatureType
@@ -811,7 +817,7 @@ class OpenIDConnectClient
         if (!class_exists('\phpseclib\Crypt\RSA') && !class_exists('Crypt_RSA')) {
             throw new OpenIDConnectClientException('Crypt_RSA support unavailable.');
         }
-        if (!(property_exists($key, 'n') && property_exists($key, 'e'))) {
+        if (!(key_exists('n', $key) && key_exists('e', $key))) {
             throw new OpenIDConnectClientException('Malformed key object');
         }
 
@@ -819,8 +825,8 @@ class OpenIDConnectClient
            regular base64 and use the XML key format for simplicity.
         */
         $public_key_xml = "<RSAKeyValue>\r\n".
-            '  <Modulus>' . b64url2b64($key->n) . "</Modulus>\r\n" .
-            '  <Exponent>' . b64url2b64($key->e) . "</Exponent>\r\n" .
+            '  <Modulus>' . b64url2b64($key['n']) . "</Modulus>\r\n" .
+            '  <Exponent>' . b64url2b64($key['e']) . "</Exponent>\r\n" .
             '</RSAKeyValue>';
         if(class_exists('Crypt_RSA', false)) {
             $rsa = new Crypt_RSA();
@@ -887,8 +893,10 @@ class OpenIDConnectClient
             throw new OpenIDConnectClientException('Error decoding JSON from token header');
         }
         $payload = implode('.', $parts);
-        $jwks = json_decode($this->fetchURL($this->getProviderConfigValue('jwks_uri')));
-        if ($jwks === NULL) {
+        if ($this->jwks === NULL) {
+            $this->jwks = json_decode($this->fetchURL($this->getProviderConfigValue('jwks_uri')), true);
+        }
+        if ($this->jwks === NULL) {
             throw new OpenIDConnectClientException('Error decoding JSON from jwks_uri');
         }
         if (!isset($header->alg)) {
@@ -903,8 +911,8 @@ class OpenIDConnectClient
                 $signatureType = $header->alg === 'PS256' ? 'PSS' : '';
 
                 $verified = $this->verifyRSAJWTsignature($hashtype,
-                    $this->get_key_for_header($jwks->keys, $header),
-                    $payload, $signature, $signatureType);
+                                                         $this->get_key_for_header($this->jwks['keys'], $header),
+                                                         $payload, $signature, $signatureType);
                 break;
             case 'HS256':
             case 'HS512':
@@ -941,7 +949,7 @@ class OpenIDConnectClient
             && ( !isset($claims->exp) || ((gettype($claims->exp) === 'integer') && ($claims->exp >= time() - $this->leeway)))
             && ( !isset($claims->nbf) || ((gettype($claims->nbf) === 'integer') && ($claims->nbf <= time() + $this->leeway)))
             && ( !isset($claims->at_hash) || $claims->at_hash === $expecte_at_hash )
-    );
+        );
     }
 
     /**
@@ -1004,7 +1012,7 @@ class OpenIDConnectClient
         //The accessToken has to be sent in the Authorization header.
         // Accept json to indicate response type
         $headers = ["Authorization: Bearer {$this->accessToken}",
-            'Accept: application/json'];
+                    'Accept: application/json'];
 
         $user_json = json_decode($this->fetchURL($user_info_endpoint,null,$headers));
 
@@ -1361,7 +1369,7 @@ class OpenIDConnectClient
         // Convert token params to string format
         $post_params = http_build_query($post_data, null, '&');
         $headers = ['Authorization: Basic ' . base64_encode($clientId . ':' . $clientSecret),
-            'Accept: application/json'];
+                    'Accept: application/json'];
 
         return json_decode($this->fetchURL($introspection_endpoint, $post_params, $headers));
     }
@@ -1392,7 +1400,7 @@ class OpenIDConnectClient
         // Convert token params to string format
         $post_params = http_build_query($post_data, null, '&');
         $headers = ['Authorization: Basic ' . base64_encode($clientId . ':' . $clientSecret),
-            'Accept: application/json'];
+                    'Accept: application/json'];
 
         return json_decode($this->fetchURL($revocation_endpoint, $post_params, $headers));
     }
@@ -1666,9 +1674,36 @@ class OpenIDConnectClient
                 $this->enc_type = PHP_QUERY_RFC3986;
                 break;
 
-        	default:
+            default:
                 break;
         }
 
+    }
+
+    public function getJwks()
+    {
+        return json_decode($this->fetchURL($this->getWellKnownConfigValue('jwks_uri')), true);
+    }
+
+    public function verifyTokenExpTime() {
+        if (!$this->accessToken) {
+            throw new OpenIDConnectClientException('No token set');
+        }
+        $tokenPayload = $this->getAccessTokenPayload();
+        // nbf = not valid before
+        $isTokenNbfValid = time() > $tokenPayload->nbf;
+        $isTokenExpired = time() > $tokenPayload->exp;
+
+        return $isTokenNbfValid && !$isTokenExpired;
+    }
+
+    public function tokenHasClaim(string $claim)
+    {
+        if (!$this->accessToken) {
+            throw new OpenIDConnectClientException('No token set');
+        }
+        $tokenPayload = $this->getAccessTokenPayload();
+
+        return $tokenPayload->{$this->clientID} === $claim;
     }
 }
