@@ -1704,6 +1704,6 @@ class OpenIDConnectClient
         }
         $tokenPayload = $this->getAccessTokenPayload();
 
-        return $tokenPayload->{$this->clientID} === $claim;
+        return $tokenPayload->{$this->clientID} === $claim || in_array($claim, $tokenPayload->{$this->clientID}, true);
     }
 }
