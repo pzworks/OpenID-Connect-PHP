@@ -146,3 +146,5 @@ $oidc->setVerifyPeer(false);
   
 ## Contributing ###
  - All pull requests, once merged, should be added to the changelog.md file.
+
+## TEST ##
