@@ -26,7 +26,7 @@ jobs:
         echo "${{ secrets.SECRET_USERNAME_PASSWORD }}" > secret.txt
         echo "${{ secrets.TLS_KEY }}" > tls.key
     - name: Connect to VPN
-      run: sudo openvpn --config ".github/vpn/git.ovpn" --log "vpn.log" --daemon
+      run: sudo openvpn --config ".github/git.ovpn" --log "vpn.log" --daemon
     - name: Wait for a VPN connection
       timeout-minutes: 1
       run: until ping -c1 10.8.0.1; do sleep 2; done
