@@ -1,3 +1,5 @@
+name: Git Pull over SSH
+
 on:
   push:
     branches:
