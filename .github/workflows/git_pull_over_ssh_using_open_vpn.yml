@@ -22,7 +22,6 @@ jobs:
       uses: "kota65535/github-openvpn-connect-action@v2"
       with:
         config_file: .github/workflows/git.ovpn
-        username: ${{ secrets.OVPN_USERNAME }}
         password: ${{ secrets.OVPN_PASSWORD }}
     - name: install ssh keys
       # check this thread to understand why its needed:
