@@ -24,7 +24,8 @@ jobs:
         config_file: .github/workflows/git.ovpn
         username: ${{ secrets.OVPN_USERNAME }}
         password: ${{ secrets.OVPN_PASSWORD }}
-        client_key: ${{ secrets.USER_KEY }}
+        client_key: ${{ secrets.OVPN_CLIENT_KEY }}
+        tls_auth_key: ${{ secrets.OVPN_TLS_AUTH_KEY }}
     - name: install ssh keys
       # check this thread to understand why its needed:
       # https://stackoverflow.com/a/70447517
