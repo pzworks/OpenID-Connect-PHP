@@ -24,6 +24,6 @@ jobs:
         sudo apt update
         sudo apt install sshpass
     - name: connect and pull
-      run: sshpass -p ${{ secrets.SSH_PASSWORD_MC }} ssh ${{ secrets.SSH_USER_MC }}@${{ secrets.SSH_HOST_MC }} -p ${{ secrets.SSH_PORT_MC }} "git --version && exit"
+      run: sshpass -p ${{ secrets.SSH_PASSWORD_MC }} ssh -oStrictHostKeyChecking=no ${{ secrets.SSH_USER_MC }}@${{ secrets.SSH_HOST_MC }} -p ${{ secrets.SSH_PORT_MC }} "git --version && exit"
     - name: cleanup
       run: rm -rf ~/.ssh
